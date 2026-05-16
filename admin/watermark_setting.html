@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiSnap | Watermark Setting</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style> 
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; } 
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        
+        /* Watermark Layer */
+        .watermark-layer { 
+            position: absolute; inset: 0; z-index: 10; display: flex; 
+            pointer-events: none; width: 100%; height: 100%; 
+        }
+        
+        /* Positioning Logic */
+        .pos-top-left { align-items: flex-start; justify-content: flex-start; }
+        .pos-top-center { align-items: flex-start; justify-content: center; }
+        .pos-top-right { align-items: flex-start; justify-content: flex-end; }
+        .pos-center-left { align-items: center; justify-content: flex-start; }
+        .pos-center { align-items: center; justify-content: center; }
+        .pos-center-right { align-items: center; justify-content: flex-end; }
+        .pos-bottom-left { align-items: flex-end; justify-content: flex-start; }
+        .pos-bottom-center { align-items: flex-end; justify-content: center; }
+        .pos-bottom-right { align-items: flex-end; justify-content: flex-end; }
+
+        /* Anchor Grid */
+        .anchor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100px; margin: 0 auto; }
+        .anchor-point { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #cbd5e1; cursor: pointer; transition: all 0.2s; }
+        .anchor-point:hover { border-color: #3b82f6; }
+        .anchor-point.active { background-color: #3b82f6; border-color: #3b82f6; box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6; }
+
+        /* Custom Slider */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 2px solid white; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
+        
+        /* Disabled State */
+        .ui-disabled { opacity: 0.4; pointer-events: none; filter: grayscale(90%); transition: all 0.3s ease; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { opacity: 1; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-gray-800">
+    
+    <aside id="sidebar-container" class="flex-shrink-0 hidden md:flex h-full z-30 transition-all duration-300"></aside>
+
+    <div class="flex-1 flex flex-col min-w-0 h-full bg-[#f8fafc]">
+        
+        <div id="header-container" class="sticky top-0 z-20 w-full bg-white shadow-sm h-16 flex-shrink-0"></div>
+
+        <main class="flex-1 overflow-y-auto p-4 w-full" id="main-content">
+            <div class="w-full px-4 pb-20 h-full flex flex-col">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 flex-shrink-0">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-copyright text-blue-600"></i> ตั้งค่าลายน้ำ
+                        </h1>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-200 shadow-sm">
+                        <div class="relative">
+                            <i class="fas fa-folder-open absolute left-3 top-2.5 text-blue-500"></i>
+                            <select id="eventSelector" onchange="loadWatermarkConfig()" class="pl-9 pr-8 py-2 bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer w-56 appearance-none">
+                                <option value="" disabled selected>-- เลือกงาน (Event) --</option>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3 text-xs text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <button onclick="saveConfig()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95">
+                            <i class="fas fa-save"></i> บันทึก
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full pb-2">
+                    
+                    <div class="lg:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
+                        
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">1. Watermark Image</h3>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-gray-600">เปิดใช้งาน</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="watermarkToggle" class="sr-only peer" onchange="toggleUI()">
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="settings-group-1" class="transition-all duration-300">
+                                <div class="border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition relative h-32 group bg-gray-50" onclick="document.getElementById('fileInput').click()">
+                                    <img id="thumb-preview" src="" class="absolute inset-0 w-full h-full object-contain p-4 hidden transition-all duration-300">
+                                    <div id="upload-placeholder" class="text-center text-gray-400 group-hover:text-blue-500 transition-colors">
+                                        <i class="fas fa-cloud-upload-alt text-2xl mb-1"></i>
+                                        <p class="text-xs font-medium">คลิกเพื่ออัปโหลด (.png)</p>
+                                    </div>
+                                    <div class="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur hidden" id="edit-badge"><i class="fas fa-pen"></i> แก้ไข</div>
+                                </div>
+                                <input type="file" id="fileInput" accept="image/png" class="hidden" onchange="handleFileUpload(this)">
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm transition-all" id="settings-group-2">
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">2. Adjustments</h3>
+                            
+                            <div class="space-y-5">
+                                <div class="flex items-center gap-3">
+                                    <label class="w-16 text-xs font-bold text-gray-600">Opacity</label>
+                                    <input type="range" id="opacityRange" min="0" max="100" value="100" class="flex-1">
+                                    <input type="number" id="opacityInput" min="0" max="100" value="100" class="w-14 text-xs border border-gray-300 rounded p-1 text-center font-mono focus:border-blue-500 outline-none">
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div class="flex items-start gap-2">
+                                        <label class="w-16 text-xs font-bold text-gray-600 pt-1">Size</label>
+                                        <div class="flex-1 flex flex-col gap-2">
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="sizeMode" value="prop" id="sizeProp" checked class="accent-blue-600 cursor-pointer" onchange="updatePreview()">
+                                                <label for="sizeProp" class="text-xs text-gray-700 cursor-pointer w-20">Proportional</label>
+                                                <div class="flex flex-1 items-center gap-2 ml-2" id="prop-controls">
+                                                    <input type="range" id="sizeRange" min="1" max="100" value="20" class="flex-1 h-1" oninput="document.getElementById('sizeProp').checked=true">
+                                                    <input type="number" id="sizeInput" min="1" max="100" value="20" class="w-14 text-xs border border-gray-300 rounded p-1 text-center font-mono focus:border-blue-500 outline-none" onclick="document.getElementById('sizeProp').checked=true">
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="sizeMode" value="fit" id="sizeFit" class="accent-blue-600 cursor-pointer" onchange="updatePreview()">
+                                                <label for="sizeFit" class="text-xs text-gray-700 cursor-pointer">Fit</label>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="sizeMode" value="fill" id="sizeFill" class="accent-blue-600 cursor-pointer" onchange="updatePreview()">
+                                                <label for="sizeFill" class="text-xs text-gray-700 cursor-pointer">Fill</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="border-t border-gray-100 my-2"></div>
+
+                                <div class="space-y-4">
+                                    <label class="text-xs font-bold text-gray-600 block mb-2">Inset</label>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-[10px] text-gray-400 w-16 text-right">Horizontal</span>
+                                        <input type="range" id="insetXRange" min="-100" max="100" value="0" class="flex-1">
+                                        <input type="number" id="insetXInput" min="-100" max="100" value="0" class="w-14 text-xs border border-gray-300 rounded p-1 text-center font-mono focus:border-blue-500 outline-none">
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-[10px] text-gray-400 w-16 text-right">Vertical</span>
+                                        <input type="range" id="insetYRange" min="-100" max="100" value="0" class="flex-1">
+                                        <input type="number" id="insetYInput" min="-100" max="100" value="0" class="w-14 text-xs border border-gray-300 rounded p-1 text-center font-mono focus:border-blue-500 outline-none">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm transition-all" id="settings-group-3">
+                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">3. Position</h3>
+                            <div class="flex justify-center py-2">
+                                <div class="anchor-grid">
+                                    <div class="anchor-point" data-pos="pos-top-left" onclick="selectAnchor('pos-top-left')"></div>
+                                    <div class="anchor-point" data-pos="pos-top-center" onclick="selectAnchor('pos-top-center')"></div>
+                                    <div class="anchor-point" data-pos="pos-top-right" onclick="selectAnchor('pos-top-right')"></div>
+                                    <div class="anchor-point" data-pos="pos-center-left" onclick="selectAnchor('pos-center-left')"></div>
+                                    <div class="anchor-point" data-pos="pos-center" onclick="selectAnchor('pos-center')"></div>
+                                    <div class="anchor-point" data-pos="pos-center-right" onclick="selectAnchor('pos-center-right')"></div>
+                                    <div class="anchor-point" data-pos="pos-bottom-left" onclick="selectAnchor('pos-bottom-left')"></div>
+                                    <div class="anchor-point" data-pos="pos-bottom-center" onclick="selectAnchor('pos-bottom-center')"></div>
+                                    <div class="anchor-point active" data-pos="pos-bottom-right" onclick="selectAnchor('pos-bottom-right')"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-8 flex flex-col h-full overflow-hidden">
+                        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden relative">
+                            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-white z-10">
+                                <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live Preview
+                                </h3>
+                                <button onclick="fetchRandomImage()" class="text-xs text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded"><i class="fas fa-random mr-1"></i> เปลี่ยนรูป</button>
+                            </div>
+                            
+                            <div class="flex-1 bg-[#f1f5f9] flex items-center justify-center relative overflow-hidden p-6">
+                                
+                                <div class="relative inline-block shadow-2xl rounded-lg overflow-hidden group max-w-full max-h-full">
+                                    
+                                    <img id="preview-base-image" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80" 
+                                         class="block max-w-full max-h-[80vh] w-auto h-auto object-contain bg-white">
+                                    
+                                    <div id="preview-layer" class="watermark-layer pos-bottom-right">
+                                        <img id="preview-wm" src="" class="hidden object-contain drop-shadow-md transition-all duration-75" style="width: 20%; opacity: 1;">
+                                        
+                                        <div id="fallback-wm" class="bg-white/90 text-gray-800 px-6 py-3 rounded-lg text-lg font-bold shadow-lg border border-gray-200 backdrop-blur-md hidden">
+                                            LOGO
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/admin_assets/layout.js"></script>
+    <script>
+        let currentEventId = "";
+        let logoData = null; 
+        let selectedPos = "pos-bottom-right";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            linkInputs('opacityRange', 'opacityInput');
+            linkInputs('sizeRange', 'sizeInput');
+            linkInputs('insetXRange', 'insetXInput');
+            linkInputs('insetYRange', 'insetYInput');
+
+            try {
+                const res = await fetch('/api/get-events');
+                const data = await res.json();
+                const select = document.getElementById('eventSelector');
+                if(data.events) {
+                    data.events.forEach(e => {
+                        const opt = document.createElement('option');
+                        opt.value = e.event_id; opt.innerText = e.event_name;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch(e) {}
+        });
+
+        function linkInputs(rangeId, numId) {
+            const range = document.getElementById(rangeId);
+            const num = document.getElementById(numId);
+            range.addEventListener('input', () => { num.value = range.value; updatePreview(); });
+            num.addEventListener('input', () => { range.value = num.value; updatePreview(); });
+        }
+
+        async function loadWatermarkConfig() {
+            currentEventId = document.getElementById('eventSelector').value;
+            if(!currentEventId) return;
+
+            Swal.showLoading();
+            try {
+                const res = await fetch(`/api/get-watermark/${currentEventId}`);
+                const data = await res.json();
+                const conf = data.config || {};
+
+                document.getElementById('watermarkToggle').checked = conf.enabled || false;
+                setVal('opacityRange', 'opacityInput', conf.opacity !== undefined ? conf.opacity : 100);
+                
+                const sizeMode = conf.sizeMode || 'prop';
+                const rad = document.querySelector(`input[name="sizeMode"][value="${sizeMode}"]`);
+                if(rad) rad.checked = true;
+                
+                setVal('sizeRange', 'sizeInput', conf.scale !== undefined ? conf.scale : 20);
+                setVal('insetXRange', 'insetXInput', conf.insetX || 0);
+                setVal('insetYRange', 'insetYInput', conf.insetY || 0);
+
+                if(conf.position) selectAnchor('pos-' + conf.position);
+                else selectAnchor('pos-bottom-right');
+
+                // Load Watermark Image
+                const preview = document.getElementById('thumb-preview');
+                const place = document.getElementById('upload-placeholder');
+                const badge = document.getElementById('edit-badge');
+                
+                if(data.has_file) {
+                    const url = `/events_files/watermarks/${currentEventId}.png?t=${Date.now()}`;
+                    logoData = url;
+                    preview.src = url; 
+                    preview.classList.remove('hidden');
+                    place.classList.add('hidden');
+                    badge.classList.remove('hidden');
+                } else {
+                    logoData = null;
+                    preview.classList.add('hidden');
+                    place.classList.remove('hidden');
+                    badge.classList.add('hidden');
+                }
+                
+                fetchRandomImage(); // Fetch REAL image
+                toggleUI(); 
+                Swal.close();
+            } catch (e) { Swal.close(); }
+        }
+
+        // ✅ Function แก้ไขใหม่: ดึงรูป Raw File ตรงๆ
+        async function fetchRandomImage() {
+            if(!currentEventId) return;
+            try {
+                const res = await fetch(`/api/photos/${currentEventId}`);
+                const data = await res.json();
+                const img = document.getElementById('preview-base-image');
+                
+                if(data.photos && data.photos.length > 0) {
+                    const randomPhoto = data.photos[Math.floor(Math.random() * data.photos.length)];
+                    // ✅ ใช้ Static Path ตรงๆ เพื่อเลี่ยง Watermark Logic ของ API
+                    img.src = `/events_files/${currentEventId}/${randomPhoto.name}`;
+                } else {
+                    img.src = "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80";
+                }
+            } catch(e) {}
+        }
+
+        function setVal(rangeId, numId, val) {
+            document.getElementById(rangeId).value = val;
+            document.getElementById(numId).value = val;
+        }
+
+        function toggleUI() {
+            const enabled = document.getElementById('watermarkToggle').checked;
+            const groups = [
+                document.getElementById('settings-group-1'),
+                document.getElementById('settings-group-2'),
+                document.getElementById('settings-group-3')
+            ];
+
+            groups.forEach(g => {
+                if(enabled) g.classList.remove('ui-disabled');
+                else g.classList.add('ui-disabled');
+            });
+
+            updatePreview();
+        }
+
+        function handleFileUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    logoData = e.target.result;
+                    const preview = document.getElementById('thumb-preview');
+                    const place = document.getElementById('upload-placeholder');
+                    const badge = document.getElementById('edit-badge');
+                    
+                    preview.src = logoData;
+                    preview.classList.remove('hidden');
+                    place.classList.add('hidden');
+                    badge.classList.remove('hidden');
+                    
+                    updatePreview();
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function selectAnchor(pos) {
+            selectedPos = pos;
+            document.querySelectorAll('.anchor-point').forEach(el => el.classList.remove('active'));
+            const target = document.querySelector(`.anchor-point[data-pos="${pos}"]`);
+            if(target) target.classList.add('active');
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const enabled = document.getElementById('watermarkToggle').checked;
+            const opacity = document.getElementById('opacityRange').value;
+            const sizeMode = document.querySelector('input[name="sizeMode"]:checked').value;
+            const sizeVal = document.getElementById('sizeRange').value;
+            const insetX = document.getElementById('insetXRange').value;
+            const insetY = document.getElementById('insetYRange').value;
+
+            const propControls = document.getElementById('prop-controls');
+            if(sizeMode === 'prop') propControls.classList.remove('opacity-50', 'pointer-events-none');
+            else propControls.classList.add('opacity-50', 'pointer-events-none');
+
+            const wm = document.getElementById('preview-wm');
+            const layer = document.getElementById('preview-layer');
+            const fall = document.getElementById('fallback-wm');
+
+            if(!enabled) {
+                wm.classList.add('hidden'); fall.classList.add('hidden'); return;
+            }
+
+            layer.className = `watermark-layer ${selectedPos}`;
+            
+            const target = logoData ? wm : fall;
+            if(logoData) {
+                wm.src = logoData; wm.classList.remove('hidden'); fall.classList.add('hidden');
+            } else {
+                wm.classList.add('hidden'); fall.classList.remove('hidden');
+            }
+
+            target.style.opacity = opacity / 100;
+            target.style.transform = `translate(${insetX}%, ${insetY}%)`;
+
+            if(sizeMode === 'prop') {
+                target.style.width = sizeVal + '%';
+                target.style.height = 'auto';
+                target.style.objectFit = 'contain';
+            } else if (sizeMode === 'fit') {
+                target.style.width = '100%';
+                target.style.height = '100%';
+                target.style.objectFit = 'contain';
+            } else if (sizeMode === 'fill') {
+                target.style.width = '100%';
+                target.style.height = '100%';
+                target.style.objectFit = 'cover';
+            }
+        }
+
+        async function saveConfig() {
+            if (!currentEventId) return Swal.fire('Warning', 'กรุณาเลือก Event ก่อน', 'warning');
+
+            const sizeMode = document.querySelector('input[name="sizeMode"]:checked').value;
+
+            const payload = {
+                event_id: currentEventId,
+                enabled: document.getElementById('watermarkToggle').checked,
+                opacity: parseInt(document.getElementById('opacityRange').value),
+                sizeMode: sizeMode,
+                scale: parseInt(document.getElementById('sizeRange').value),
+                insetX: parseInt(document.getElementById('insetXRange').value),
+                insetY: parseInt(document.getElementById('insetYRange').value),
+                position: selectedPos.replace('pos-', '')
+            };
+
+            Swal.fire({ title: 'Saving...', didOpen: () => Swal.showLoading() });
+            
+            try {
+                if (document.getElementById('fileInput').files[0]) {
+                    const formData = new FormData();
+                    formData.append('file', document.getElementById('fileInput').files[0]);
+                    await fetch(`/api/upload-watermark/${currentEventId}`, { method: 'POST', body: formData });
+                }
+
+                const res = await fetch('/api/save-watermark', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                
+                if(res.ok) Swal.fire('Saved!', 'บันทึกสำเร็จ', 'success');
+                else throw new Error('Failed');
+            } catch(e) { Swal.fire('Error', 'บันทึกไม่สำเร็จ', 'error'); }
+        }
+    </script>
+</body>
+</html>

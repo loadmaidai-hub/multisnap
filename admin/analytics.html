@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiSnap | Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Kanit', sans-serif; } </style>
+</head>
+<body class="bg-[#f8fafc] flex h-screen overflow-hidden">
+    
+    <aside id="sidebar-container" class="flex-shrink-0 hidden md:flex h-full z-30"></aside>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <div id="header-container" class="w-full sticky top-0 z-20 bg-white"></div>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-8">
+            <div class="max-w-7xl mx-auto">
+                
+                <a href="/events" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 text-sm font-medium transition">
+                    <i class="fas fa-arrow-left mr-2"></i> กลับไปหน้ารายการอีเวนท์
+                </a>
+
+                <div class="mb-2"><span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">BETA FEATURE</span></div>
+                <div class="flex items-center gap-3 mb-2">
+                    <h1 id="eventNameDisplay" class="text-3xl font-bold text-gray-800">กำลังโหลด...</h1>
+                    <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded uppercase">UPCOMING</span>
+                </div>
+                <div class="text-gray-500 text-sm mb-8 flex items-center">
+                    <i class="far fa-calendar-alt mr-2"></i> <span id="eventDateDisplay">-</span>
+                </div>
+
+                <h3 class="text-lg font-bold text-gray-800 mb-4">สรุปข้อมูลการใช้งาน</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                        <div><p class="text-gray-500 text-xs font-medium mb-1">ผู้ใช้งานทั้งหมด</p><h4 class="text-3xl font-bold text-gray-800">0</h4></div>
+                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl"><i class="fas fa-users"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                        <div><p class="text-gray-500 text-xs font-medium mb-1">จำนวนการเข้าชม</p><h4 class="text-3xl font-bold text-gray-800">0</h4></div>
+                        <div class="w-12 h-12 rounded-full bg-green-50 text-green-500 flex items-center justify-center text-xl"><i class="far fa-eye"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                        <div><p class="text-gray-500 text-xs font-medium mb-1">การค้นหาใบหน้า</p><h4 class="text-3xl font-bold text-gray-800">0</h4><p class="text-[10px] text-gray-400 mt-1">สำเร็จ 0.00%</p></div>
+                        <div class="w-12 h-12 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center text-xl"><i class="fas fa-search"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                        <div><p class="text-gray-500 text-xs font-medium mb-1">การดาวน์โหลด</p><h4 class="text-3xl font-bold text-gray-800">0</h4><p class="text-[10px] text-gray-400 mt-1">รูปทั้งหมด 0</p></div>
+                        <div class="w-12 h-12 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center text-xl"><i class="fas fa-download"></i></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                    
+                    <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm h-full flex flex-col">
+                        <h3 class="text-lg font-bold text-gray-800 mb-6">ประเภทอุปกรณ์</h3>
+                        <div class="flex-1 flex items-center justify-center h-[300px] relative">
+                            <canvas id="deviceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm h-full flex flex-col">
+                        <h3 class="text-lg font-bold text-gray-800 mb-6">เบราว์เซอร์</h3>
+                        <div class="flex-1 flex items-center justify-center h-[300px] relative">
+                            <canvas id="browserChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="h-20"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/admin_assets/layout.js"></script>
+    <script>
+        const pathSegments = window.location.pathname.split('/');
+        const eventId = pathSegments[pathSegments.length - 1];
+
+        window.onload = async () => {
+            if(!eventId) return;
+            try {
+                const res = await fetch(`/api/get-event/${eventId}`);
+                const data = await res.json();
+                document.getElementById('eventNameDisplay').innerText = data.event_name;
+                document.getElementById('eventDateDisplay').innerText = formatDate(data.event_date);
+            } catch(e) { console.error(e); }
+            
+            renderCharts();
+        };
+
+        function formatDate(dateStr) {
+            if(!dateStr) return "-";
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateStr).toLocaleDateString('th-TH', options);
+        }
+
+        function renderCharts() {
+            // 1. Device Chart
+            const deviceCtx = document.getElementById('deviceChart').getContext('2d');
+            new Chart(deviceCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ios', 'android', 'desktop'],
+                    datasets: [{
+                        data: [0, 0, 0], // Mock Data (ใส่ 0 ไว้ก่อนตามรูป)
+                        backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6'], // Blue, Green, Purple
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%', // รูกลางกว้างๆ
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { 
+                                usePointStyle: true, 
+                                boxWidth: 8, 
+                                padding: 20,
+                                font: { family: 'Kanit', size: 12 },
+                                color: '#6b7280'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Browser Chart
+            const browserCtx = document.getElementById('browserChart').getContext('2d');
+            new Chart(browserCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['chrome', 'safari', 'firefox', 'other'],
+                    datasets: [{
+                        data: [0, 0, 0, 0], // Mock Data
+                        backgroundColor: ['#f97316', '#3b82f6', '#8b5cf6', '#6b7280'], // Orange, Blue, Purple, Gray
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { 
+                                usePointStyle: true, 
+                                boxWidth: 8, 
+                                padding: 20,
+                                font: { family: 'Kanit', size: 12 },
+                                color: '#6b7280'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

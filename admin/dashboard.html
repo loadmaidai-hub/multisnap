@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <title>MultiSnap | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style> 
+        body { font-family: 'Kanit', sans-serif; }
+        
+        /* ✅ 2. ทำให้การเลื่อนบน iPhone ลื่นไหลเป็นธรรมชาติ */
+        .smooth-scroll { 
+            -webkit-overflow-scrolling: touch; 
+            overscroll-behavior-y: contain;
+        }
+
+        /* ปรับแต่ง Scrollbar ให้สวยงาม (สำหรับ Chrome/Safari) */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+
+<body class="bg-[#f8fafc] flex h-[100dvh] overflow-hidden">
+    
+    <script src="/admin_assets/layout.js"></script>
+
+    <aside id="sidebar-container" class="flex-shrink-0 hidden md:flex h-full z-30"></aside>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <div id="header-container" class="w-full sticky top-0 z-20 bg-white shadow-sm"></div>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 pb-40 smooth-scroll">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full group hover:border-blue-200 transition">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <div class="text-sm font-medium text-gray-500 mb-1">จำนวนอีเวนท์ทั้งหมด</div>
+                            <div class="p-2 bg-blue-50 rounded-lg text-blue-600"><i class="fas fa-calendar-alt"></i></div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2" id="totalEventsCount">...</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full group hover:border-purple-200 transition">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <div class="text-sm font-medium text-gray-500 mb-1">รูปภาพทั้งหมด</div>
+                            <div class="p-2 bg-purple-50 rounded-lg text-purple-600"><i class="fas fa-images"></i></div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2" id="totalPhotosCount">...</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-full group hover:border-green-200 transition">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <div class="text-sm font-medium text-gray-500 mb-1">พื้นที่จัดเก็บที่ใช้</div>
+                            <div class="p-2 bg-green-50 rounded-lg text-green-600"><i class="fas fa-hdd"></i></div>
+                        </div>
+                        <div class="text-3xl font-bold text-gray-800 mt-2" id="storageUsedCount">...</div>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 mt-4 overflow-hidden">
+                        <div class="bg-green-500 h-1.5 rounded-full" style="width: 20%"></div> 
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-10">
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-lg">งานล่าสุด (Recent Events)</h3>
+                        <p class="text-sm text-gray-500">รายการงานที่คุณเพิ่งสร้างหรืออัปเดตล่าสุด</p>
+                    </div>
+                    <a href="/events" class="text-sm text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1 whitespace-nowrap">
+                        ดูทั้งหมด <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse whitespace-nowrap">
+                        <thead class="bg-white text-gray-400 text-xs uppercase font-semibold border-b border-gray-100">
+                            <tr>
+                                <th class="px-6 py-4 w-10">#</th>
+                                <th class="px-6 py-4">ชื่องาน</th>
+                                <th class="px-6 py-4">วันที่จัดงาน</th>
+                                <th class="px-6 py-4 text-center">สถานะ</th>
+                                <th class="px-6 py-4 text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentEventsTable" class="text-sm divide-y divide-gray-50 text-gray-600">
+                            <tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">กำลังโหลดข้อมูล...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="toolsModal" class="relative z-50 hidden transition-opacity duration-300 opacity-0" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeToolsModal()"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-4xl my-8">
+                    
+                    <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+                        <div class="text-center w-full">
+                            <h3 class="text-lg font-bold text-gray-800" id="toolsModalTitle">Event Management</h3>
+                            <p class="text-gray-500 text-sm mt-0.5">เลือกเครื่องมือที่คุณต้องการใช้งาน</p>
+                        </div>
+                        <button onclick="closeToolsModal()" class="absolute top-5 right-6 text-gray-400 hover:text-gray-600 outline-none w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+
+                    <div class="p-6 md:p-8 bg-gray-50">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                            <a id="toolsUploadLink" href="#" class="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:border-blue-400 hover:shadow-md transition flex flex-col items-center text-center h-full">
+                                <div class="w-14 h-14 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <h4 class="text-gray-800 font-bold mb-1 text-lg">Upload Photos</h4>
+                                <p class="text-gray-500 text-xs font-light">อัปโหลดรูปภาพเข้าสู่งาน</p>
+                            </a>
+
+                            <div onclick="openPrintModalFromMenu()" class="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:border-emerald-400 hover:shadow-md transition flex flex-col items-center text-center cursor-pointer h-full">
+                                <div class="w-14 h-14 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition"><i class="fas fa-print"></i></div>
+                                <h4 class="text-gray-800 font-bold mb-1 text-lg">Print QR Code</h4>
+                                <p class="text-gray-500 text-xs font-light">พิมพ์ป้ายตั้งโต๊ะสำหรับหน้างาน</p>
+                            </div>
+
+                            <div id="statsCard" class="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:border-purple-400 hover:shadow-md transition flex flex-col items-center text-center cursor-pointer h-full">
+                                <div class="w-14 h-14 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition"><i class="fas fa-chart-pie"></i></div>
+                                <h4 class="text-gray-800 font-bold mb-1 text-lg">Analytics</h4>
+                                <p class="text-gray-500 text-xs font-light">ดูสถิติผู้เข้าชมและยอดโหลด</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6"> 
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Public Display Links</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                                <a id="btnLinkGallery" href="#" target="_blank" class="group bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-400 rounded-xl p-5 flex items-center gap-5 transition-all duration-300 shadow-sm hover:shadow-md">
+                                    <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center transition shadow-sm shrink-0">
+                                        <i class="fas fa-mobile-alt text-xl"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h5 class="font-bold text-gray-800 group-hover:text-blue-700 text-base truncate">Live Gallery</h5>
+                                        <p class="text-xs text-gray-400 group-hover:text-blue-500 truncate">หน้าสำหรับมือถือแขก</p>
+                                    </div>
+                                    <i class="fas fa-external-link-alt ml-auto text-gray-300 group-hover:text-blue-400"></i>
+                                </a>
+
+                                <a id="btnLinkSlideshow" href="#" target="_blank" class="group bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-400 rounded-xl p-5 flex items-center gap-5 transition-all duration-300 shadow-sm hover:shadow-md">
+                                    <div class="w-12 h-12 rounded-full bg-purple-50 text-purple-500 group-hover:bg-purple-500 group-hover:text-white flex items-center justify-center transition shadow-sm shrink-0">
+                                        <i class="fas fa-tv text-xl"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h5 class="font-bold text-gray-800 group-hover:text-purple-700 text-base truncate">Slideshow</h5>
+                                        <p class="text-xs text-gray-400 group-hover:text-purple-500 truncate">หน้าสำหรับจอโปรเจคเตอร์</p>
+                                    </div>
+                                    <i class="fas fa-external-link-alt ml-auto text-gray-300 group-hover:text-purple-400"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="printModal" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative overflow-y-auto max-h-[90vh]">
+            <button onclick="closePrintModal()" id="no-print" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
+            <div id="printArea" class="p-8 md:p-10 text-center flex flex-col items-center justify-center h-full border-8 border-white">
+                <div class="mb-6">
+                    <h1 class="text-3xl md:text-4xl font-black text-[#0c3355] tracking-tight">M U L T I S N A P</h1>
+                    <p class="text-sm text-gray-400 uppercase tracking-widest mt-1">AI Photo Gallery</p>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm mb-6"><img id="printQrImage" src="" class="w-48 h-48 md:w-64 md:h-64 object-contain" alt="Scan Me"></div>
+                <h2 id="printEventName" class="text-xl md:text-2xl font-bold text-gray-800 mb-2 break-words max-w-[250px]">Loading...</h2>
+                <p class="text-gray-600 mb-8 text-sm">สแกนเพื่อค้นหารูปถ่ายของคุณในงาน</p>
+                <div class="flex items-center gap-4 text-xs md:text-sm text-gray-500 bg-gray-50 px-4 py-2 md:px-6 md:py-3 rounded-full">
+                    <span class="flex items-center gap-2"><i class="fab fa-line text-[#06c755] text-lg"></i> Add Friend</span><span class="text-gray-300">|</span><span class="flex items-center gap-2"><i class="fas fa-camera text-blue-500 text-lg"></i> Scan Face</span>
+                </div>
+            </div>
+            <div id="no-print" class="bg-gray-50 p-4 border-t border-gray-100 flex justify-between items-center">
+                <span class="text-xs text-gray-500">แนะนำ: พิมพ์ขนาด A5 หรือ A4</span>
+                <button onclick="window.print()" class="bg-[#0c3355] text-white px-4 py-2 md:px-6 md:py-2 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition text-sm"><i class="fas fa-print mr-2"></i> สั่งพิมพ์ทันที</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentEventId = '';
+        let currentEventName = '';
+
+        function formatBytes(bytes, decimals = 2) {
+            if (!+bytes) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        async function loadDashboardData() {
+            try {
+                const statsRes = await fetch('/api/dashboard-stats');
+                const stats = await statsRes.json();
+                
+                document.getElementById('totalEventsCount').innerText = stats.events || 0;
+                document.getElementById('totalPhotosCount').innerText = (stats.photos || 0).toLocaleString();
+                document.getElementById('storageUsedCount').innerText = formatBytes(stats.storage || 0);
+
+                const eventsRes = await fetch('/api/get-events');
+                const eventsData = await eventsRes.json();
+                let events = eventsData.events || [];
+
+                events = events.reverse().slice(0, 5); 
+
+                const tbody = document.getElementById('recentEventsTable');
+                if (events.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">ยังไม่มีอีเวนท์</td></tr>`;
+                } else {
+                    tbody.innerHTML = events.map((ev, index) => `
+                        <tr class="hover:bg-gray-50 transition group">
+                            <td class="px-6 py-4 text-gray-400 text-xs">${index + 1}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center font-bold text-xs shrink-0">
+                                        ${ev.event_name ? ev.event_name.charAt(0).toUpperCase() : 'E'}
+                                    </div>
+                                    <div class="font-medium text-gray-800 group-hover:text-blue-600 transition truncate max-w-[150px]">${ev.event_name || 'ไม่ระบุชื่อ'}</div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-gray-500 font-mono text-xs">${ev.event_date || '-'}</td>
+                            <td class="px-6 py-4 text-center">
+                                ${ev.settings?.is_published !== false 
+                                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">● เผยแพร่</span>' 
+                                    : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">○ ซ่อน</span>'
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="openToolsModal('${ev.event_id}', '${ev.event_name}')" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+                                    Manage <i class="fas fa-cog ml-1"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+            } catch (e) { 
+                console.error("Dashboard Error:", e);
+                document.getElementById('storageUsedCount').innerText = "Error";
+            }
+        }
+
+        function openToolsModal(id, name) {
+            currentEventId = id;
+            currentEventName = name;
+            document.getElementById('toolsModalTitle').innerText = `Manage: ${name}`;
+            document.getElementById('toolsUploadLink').href = `/tools/${id}`;
+            document.getElementById('statsCard').onclick = function() { window.location.href = `/analytics/${id}`; };
+            document.getElementById('btnLinkGallery').href = `/gallery/${id}`;
+            document.getElementById('btnLinkSlideshow').href = `/slideshow/${id}`;
+            const modal = document.getElementById('toolsModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); }, 10);
+        }
+            
+        function closeToolsModal() {
+            const modal = document.getElementById('toolsModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        async function openPrintModalFromMenu() {
+            try {
+                const res = await fetch('/api/get-line-settings');
+                const settings = await res.json();
+                let lineId = settings.line_oa_id;
+                if (!lineId) { Swal.fire({ icon: 'warning', title: 'No LINE ID', text: 'ไปตั้งค่า LINE OA ก่อนนะครับ' }); return; }
+                if (!lineId.startsWith('@')) lineId = '@' + lineId;
+
+                const message = `view_event_${currentEventId}`;
+                const deepLink = `https://line.me/R/oaMessage/${lineId}/?${encodeURIComponent(message)}`;
+                const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(deepLink)}`;
+
+                document.getElementById('printQrImage').src = qrApi;
+                document.getElementById('printEventName').innerText = currentEventName;
+                
+                const printModal = document.getElementById('printModal');
+                printModal.classList.remove('hidden');
+            } catch(e) { console.error(e); }
+        }
+
+        function closePrintModal() {
+            document.getElementById('printModal').classList.add('hidden');
+        }
+
+        window.onload = loadDashboardData;
+    </script>
+</body>
+</html>

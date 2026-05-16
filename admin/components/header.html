@@ -1,0 +1,95 @@
+<header class="bg-white h-16 flex items-center justify-between px-6 border-b border-gray-200 w-full sticky top-0 z-20">
+    
+    <div class="flex items-center gap-4">
+        <button onclick="toggleMobileMenu(event)" id="sidebar-toggle" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none md:hidden">
+            <i class="fas fa-bars text-lg"></i>
+        </button>
+        <h2 class="text-lg font-bold text-slate-800 hidden md:block">Dashboard</h2>
+    </div>
+
+    <div class="flex items-center gap-4">
+        <div class="relative group">
+            <div class="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1 pr-3 rounded-lg transition">
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm font-bold text-gray-800 max-w-[150px] truncate" id="header-username">Loading...</p>
+                    <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider" id="header-role">...</p>
+                </div>
+                <div id="header-avatar" class="w-9 h-9 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-gray-100 uppercase">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+
+            <div class="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-1 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all transform origin-top-right z-50">
+                <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+                    <p class="text-xs text-gray-500 mb-1">Signed in as</p>
+                    <p class="text-sm font-bold text-gray-900 truncate" id="dropdown-username">...</p>
+                </div>
+                <a href="/logout" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1">
+                    <i class="fas fa-sign-out-alt mr-2"></i> ออกจากระบบ
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ฟังก์ชันดึงข้อมูล User ทันทีที่โหลดเสร็จ
+        (function() {
+            fetch('/api/current-user')
+                .then(res => res.json())
+                .then(data => {
+                    const userEl = document.getElementById('header-username');
+                    const roleEl = document.getElementById('header-role');
+                    const avatarEl = document.getElementById('header-avatar');
+                    const dropdownUserEl = document.getElementById('dropdown-username');
+                    
+                    if (data.user) {
+                        // ถ้าเป็น Google Login ค่า data.user จะเป็น Email
+                        // เราจะตัดเอาเฉพาะชื่อหน้า @ มาแสดงให้ดูสวยงาม
+                        let displayName = data.user;
+                        if (displayName.includes('@')) {
+                            displayName = displayName.split('@')[0];
+                        }
+
+                        userEl.textContent = displayName;
+                        dropdownUserEl.textContent = data.user; // ใน Dropdown โชว์ Email เต็ม
+                        
+                        // สร้าง Avatar จากตัวอักษรแรก
+                        avatarEl.innerHTML = displayName.charAt(0).toUpperCase();
+
+                        if (data.role === 'admin') {
+                            roleEl.textContent = 'Super Admin';
+                            roleEl.className = "text-[10px] font-bold text-emerald-600 uppercase tracking-wider";
+                            avatarEl.classList.remove('bg-slate-800');
+                            avatarEl.classList.add('bg-emerald-600');
+                        } else {
+                            roleEl.textContent = 'Member';
+                            roleEl.className = "text-[10px] font-bold text-blue-500 uppercase tracking-wider";
+                            avatarEl.classList.remove('bg-slate-800');
+                            avatarEl.classList.add('bg-blue-600');
+                        }
+                    } else {
+                        userEl.textContent = "Guest";
+                    }
+                })
+                .catch(e => console.error("Auth Check Failed:", e));
+        })();
+
+        // Mobile Menu Logic
+        function toggleMobileMenu(e) {
+            if(e) { e.preventDefault(); e.stopPropagation(); }
+            const sidebar = document.getElementById('sidebar-content');
+            if (!sidebar) return;
+
+            if (sidebar.classList.contains('hidden')) {
+                sidebar.classList.remove('hidden');
+                sidebar.style.cssText = "position: fixed; top: 0; left: 0; bottom: 0; width: 16rem; z-index: 60; background-color: white; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column;";
+                
+                const backdrop = document.createElement('div');
+                backdrop.id = 'menu-backdrop';
+                backdrop.style.cssText = "position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 50;";
+                backdrop.onclick = () => { sidebar.classList.add('hidden'); sidebar.style.cssText = ""; backdrop.remove(); };
+                document.body.appendChild(backdrop);
+            }
+        }
+    </script>
+</header>

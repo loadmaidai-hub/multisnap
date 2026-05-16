@@ -1,0 +1,109 @@
+<div class="flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 w-64 hidden md:flex" id="sidebar-content">
+    
+    <div class="h-16 flex items-center px-4 border-b border-gray-200 flex-shrink-0 bg-slate-50">
+        <div class="w-9 h-9 bg-[#0f172a] rounded-full flex items-center justify-center mr-3 text-white shadow-sm">
+            <i class="fas fa-camera text-sm"></i>
+        </div>
+        <span class="text-lg font-bold text-[#0f172a] uppercase whitespace-nowrap">MultiSnap</span>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto py-4 space-y-1 px-3">
+        <a href="/dashboard" class="flex items-center px-3 py-2.5 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg group mb-1 transition-colors">
+            <div class="w-8 text-center"><i class="fas fa-home group-hover:scale-110 transition-transform"></i></div>
+            <span class="text-sm font-medium ml-2 whitespace-nowrap">Dashboard</span>
+        </a>
+        <a href="/events" class="flex items-center px-3 py-2.5 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg group mb-1 transition-colors">
+            <div class="w-8 text-center"><i class="fas fa-calendar-alt group-hover:scale-110 transition-transform"></i></div>
+            <span class="text-sm font-medium ml-2 whitespace-nowrap">Events</span>
+        </a>
+        <a href="/cloud-settings" class="flex items-center px-3 py-2.5 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg group mb-1 transition-colors">
+            <div class="w-8 text-center"><i class="fas fa-cloud group-hover:scale-110 transition-transform"></i></div>
+            <span class="text-sm font-medium ml-2 whitespace-nowrap">Cloud Setting</span>
+        </a>
+        <a href="/line-oa" class="flex items-center px-3 py-2.5 text-gray-600 hover:bg-green-50 hover:text-green-600 rounded-lg group mb-1 transition-colors">
+            <div class="w-8 text-center"><i class="fab fa-line text-lg group-hover:scale-110 transition-transform"></i></div>
+            <span class="text-sm font-medium ml-2 whitespace-nowrap">Line OA Connect</span>
+        </a>
+        <a href="/watermark-setting" class="flex items-center px-3 py-2.5 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg group mb-1 transition-colors">
+            <div class="w-8 text-center"><i class="fas fa-stamp group-hover:scale-110 transition-transform"></i></div>
+            <span class="text-sm font-medium ml-2 whitespace-nowrap">Watermark Setting</span>
+        </a>
+    </nav>
+
+    <div class="border-t border-gray-200 bg-gray-50 p-4">
+        <div class="flex items-center mb-3">
+            <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-white mr-3 overflow-hidden shadow-sm">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="overflow-hidden">
+                <p class="text-xs font-bold text-gray-700 truncate" id="sidebar-username">กำลังโหลด...</p>
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider" id="sidebar-role">...</p>
+            </div>
+        </div>
+        
+        <a href="/logout" class="flex items-center justify-center w-full px-3 py-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors border border-red-200 text-xs font-bold">
+            <i class="fas fa-power-off mr-2"></i> Logout
+        </a>
+    </div>
+
+    <script>
+    // ส่วนที่ 1: ดึงข้อมูลผู้ใช้จาก Server มาแสดง
+    fetch('/api/current-user')
+        .then(res => res.json())
+        .then(data => {
+            const userEl = document.getElementById('sidebar-username');
+            const roleEl = document.getElementById('sidebar-role');
+            
+            if (data.user) {
+                userEl.textContent = data.user; // โชว์ชื่อ (admin หรือ email)
+                
+                // กำหนดข้อความสถานะ
+                if (data.role === 'admin') {
+                    roleEl.textContent = 'Super Admin';
+                    roleEl.classList.add('text-emerald-600', 'font-bold');
+                    roleEl.classList.remove('text-gray-500');
+                } else {
+                    roleEl.textContent = 'Standard User';
+                }
+            } else {
+                userEl.textContent = "Guest";
+            }
+        })
+        .catch(err => console.error("ไม่สามารถดึงข้อมูลผู้ใช้ได้:", err));
+
+    // ส่วนที่ 2: Logic ย่อ/ขยาย Sidebar (Mobile Toggle) - คงไว้เหมือนเดิม
+    document.addEventListener('click', function(e) {
+        const toggleBtn = e.target.closest('#sidebar-toggle');
+        const sidebar = document.getElementById('sidebar-content');
+
+        if (toggleBtn && sidebar) {
+            e.preventDefault(); e.stopPropagation();
+            const isMobile = window.innerWidth < 768;
+
+            if (isMobile) {
+                if (sidebar.classList.contains('hidden')) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.style.cssText = "position: fixed; top: 0; left: 0; bottom: 0; width: 16rem; z-index: 50; background-color: white; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column;";
+                    
+                    if (!document.getElementById('menu-backdrop')) {
+                        const backdrop = document.createElement('div');
+                        backdrop.id = 'menu-backdrop';
+                        backdrop.style.cssText = "position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 40;";
+                        backdrop.onclick = function(){ 
+                            sidebar.classList.add('hidden'); 
+                            sidebar.style.cssText = ""; 
+                            this.remove(); 
+                        };
+                        document.body.appendChild(backdrop);
+                    }
+                }
+            } else {
+                sidebar.classList.toggle('w-64');
+                sidebar.classList.toggle('w-20');
+                const texts = sidebar.querySelectorAll('span, .logo-text, .text-xs, .text-[10px]');
+                texts.forEach(t => t.classList.toggle('hidden'));
+            }
+        }
+    });
+    </script>
+</div>

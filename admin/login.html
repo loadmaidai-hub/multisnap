@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - MultiSnap Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ✅ บังคับใช้ฟอนต์ Kanit ทั้งหน้า */
+        body { font-family: 'Kanit', sans-serif; }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center p-4">
+
+    <div class="glass-effect w-full max-w-md p-8 rounded-2xl shadow-2xl border border-gray-100">
+        
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4 text-white shadow-lg">
+                <i class="fas fa-camera text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-wide">MultiSnap Admin</h1>
+            <p class="text-gray-500 font-light mt-1">จัดการระบบถ่ายภาพและแกลลอรี่</p>
+        </div>
+
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label class="block text-gray-700 font-medium mb-2 ml-1">Username</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <input type="text" id="username" class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-light" placeholder="Enter username" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-gray-700 font-medium mb-2 ml-1">Password</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <input type="password" id="password" class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-light" placeholder="Enter password" required>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="hidden bg-red-50 text-red-500 text-sm p-3 rounded-lg text-center border border-red-100 font-medium">
+                <i class="fas fa-exclamation-circle mr-1"></i> ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง
+            </div>
+
+            <button type="submit" id="loginBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-lg shadow-md transition-all transform hover:scale-[1.02] flex justify-center items-center">
+                <span>เข้าสู่ระบบ</span>
+            </button>
+        </form>
+
+        <div class="relative my-6">
+            <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-gray-200"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+                <span class="px-2 bg-white text-gray-500 font-light">หรือ เข้าใช้งานด้วย</span>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <a href="/login/line" class="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#06C755] hover:bg-[#05b54d] transition-all transform hover:scale-[1.02]">
+                <i class="fab fa-line text-2xl mr-3"></i>
+                <span class="text-base font-medium">Log in with LINE</span>
+            </a>
+
+            <a href="/login/google" class="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all transform hover:scale-[1.02]">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-6 w-6 mr-3" alt="Google Logo">
+                <span class="text-base font-medium">Log in with Google</span>
+            </a>
+        </div>
+        
+        <p class="text-center text-xs text-gray-400 mt-8 font-light">
+            © 2026 MultiSnap System. All rights reserved. by POLSAINGAM
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMessage');
+            const btn = document.getElementById('loginBtn');
+            const originalBtnText = btn.innerHTML;
+
+            // Loading State
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> กำลังตรวจสอบ...';
+            btn.disabled = true;
+            errorMsg.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    // Login สำเร็จ -> ไปหน้า Dashboard
+                    window.location.href = '/dashboard';
+                } else {
+                    // Login พลาด
+                    throw new Error('Login failed');
+                }
+            } catch (error) {
+                errorMsg.classList.remove('hidden');
+                btn.innerHTML = originalBtnText;
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

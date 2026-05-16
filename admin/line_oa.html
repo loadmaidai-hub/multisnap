@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiSnap | Line OA Connect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style> 
+        body { font-family: 'Kanit', sans-serif; } 
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-[#f8fafc] flex h-screen overflow-hidden">
+    
+    <aside id="sidebar-container" class="flex-shrink-0 hidden md:flex h-full z-30"></aside>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <div id="header-container" class="w-full sticky top-0 z-20 bg-white border-b border-gray-100"></div>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-8">
+            <div class="w-full mx-auto animate-fade-in">
+                
+                <div class="mb-6 border-b border-gray-200 pb-4 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">Line OA Connect</h1>
+                        <p class="text-gray-500 text-sm mt-1">เชื่อมต่อบัญชี LINE Official Account เพื่อเริ่มใช้งานระบบส่งรูปอัตโนมัติ</p>
+                    </div>
+                    <div class="hidden sm:block">
+                        <i class="fab fa-line text-5xl text-[#06c755] opacity-20"></i>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    
+                    <div class="xl:col-span-2">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-8 h-full">
+                            <h2 class="text-xl font-bold text-gray-800 mb-6 border-l-4 border-[#06c755] pl-3">ตั้งค่าการเชื่อมต่อ</h2>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="md:col-span-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Line OA ID (Basic ID)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 font-bold">@</span>
+                                        <input type="text" id="lineOaId" placeholder="multisnap" class="w-full pl-8 pr-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#06c755] focus:border-[#06c755] outline-none transition placeholder-gray-400">
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">ID ที่ลูกค้าใช้ค้นหาเพื่อน (ไม่ต้องใส่ @ ในช่องนี้)</p>
+                                </div>
+
+                                <div class="md:col-span-1">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">LIFF ID (Gallery URL)</label>
+                                    <input type="text" id="lineLiffId" placeholder="165xxxxxxx-xxxxxxx" class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 focus:ring-2 focus:ring-[#06c755] focus:border-[#06c755] outline-none transition placeholder-gray-400 font-mono text-sm">
+                                    <p class="text-xs text-gray-400 mt-1">LIFF ID สำหรับเปิดหน้า Gallery (สร้างแบบ Full Size)</p>
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Channel Access Token (Long-lived) <span class="text-red-500">*</span></label>
+                                    <textarea id="lineToken" rows="4" placeholder="วาง Access Token ยาวๆ ที่ได้จาก LINE Developers ที่นี่..." class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 focus:ring-2 focus:ring-[#06c755] focus:border-[#06c755] outline-none transition placeholder-gray-400 resize-none font-mono text-xs leading-relaxed"></textarea>
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Channel Secret <span class="text-red-500">*</span></label>
+                                    <input type="password" id="channelSecret" placeholder="วาง Channel Secret ที่นี่..." class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 focus:ring-2 focus:ring-[#06c755] focus:border-[#06c755] outline-none transition placeholder-gray-400 font-mono text-xs">
+                                </div>
+                            </div>
+
+                            <div class="pt-8 mt-8 border-t border-gray-100">
+                                <button onclick="saveLineSettings()" class="w-full bg-[#06c755] hover:bg-[#05b34c] text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-100 flex items-center justify-center gap-2 transition transform active:scale-[0.99]">
+                                    <i class="fas fa-save"></i> บันทึกการเชื่อมต่อ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="xl:col-span-1 space-y-6">
+                        
+                        <div class="bg-blue-50 border border-blue-100 p-6 rounded-xl shadow-sm">
+                            <h3 class="font-bold text-blue-800 text-lg mb-2 flex items-center gap-2">
+                                <i class="fas fa-globe"></i> Webhook URL
+                            </h3>
+                            <p class="text-sm text-blue-600 mb-4 leading-relaxed">นำ URL นี้ไปใส่ใน LINE Developers > Messaging API > Webhook settings</p>
+                            
+                            <div class="bg-white p-4 rounded-lg border border-blue-200 flex items-center justify-between group cursor-pointer relative shadow-sm hover:border-blue-400 transition" onclick="copyWebhook()">
+                                <code class="text-xs text-gray-600 font-mono break-all line-clamp-2" id="webhookUrl">Loading...</code>
+                                <div class="pl-2 bg-white"><i class="far fa-copy text-blue-400 group-hover:text-blue-600 text-lg"></i></div>
+                            </div>
+                            
+                            <div class="mt-3 flex items-start gap-2 text-xs text-blue-600 bg-blue-100/50 p-2 rounded">
+                                <i class="fas fa-info-circle mt-0.5"></i>
+                                <span>อย่าลืมกดปุ่ม <b>Verify</b> และเปิดสวิตช์ <b>Use Webhook</b> ในหน้าตั้งค่า LINE ด้วยนะครับ</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 p-6 rounded-xl shadow-sm">
+                            <h3 class="font-bold text-gray-700 text-lg mb-4 flex items-center gap-2">
+                                <i class="fas fa-book-open text-gray-400"></i> วิธีตั้งค่าเบื้องต้น
+                            </h3>
+                            <ul class="text-sm text-gray-600 space-y-4">
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold">1</span>
+                                    <span>ไปที่ <a href="https://developers.line.biz/" target="_blank" class="text-blue-500 hover:underline font-medium">LINE Developers Console</a></span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold">2</span>
+                                    <span>สร้าง Provider และ Channel (Messaging API)</span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold">3</span>
+                                    <span>คัดลอก <b>Channel Secret</b> (Tab Basic Settings)</span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold">4</span>
+                                    <span>สร้าง <b>Long-lived Access Token</b> (Tab Messaging API)</span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold">5</span>
+                                    <span>ปิด <b>Auto-reply messages</b> ใน LINE Official Account Manager</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="h-20"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/admin_assets/layout.js"></script>
+    <script>
+        // Set Webhook URL Display
+        document.getElementById('webhookUrl').innerText = `${window.location.origin}/callback`;
+
+        // Load Settings
+        window.onload = async () => {
+            try {
+                const res = await fetch('/api/get-line-settings');
+                const data = await res.json();
+                
+                if(data.line_oa_id) document.getElementById('lineOaId').value = data.line_oa_id.replace('@', '');
+                if(data.access_token) document.getElementById('lineToken').value = data.access_token;
+                if(data.channel_secret) document.getElementById('channelSecret').value = data.channel_secret;
+                if(data.liff_id) document.getElementById('lineLiffId').value = data.liff_id;
+                
+            } catch(e) { console.error('Load config error', e); }
+        }
+
+        // Save Function
+        async function saveLineSettings() {
+            const oaIdRaw = document.getElementById('lineOaId').value.trim();
+            const token = document.getElementById('lineToken').value.trim();
+            const secret = document.getElementById('channelSecret').value.trim();
+            const liffId = document.getElementById('lineLiffId').value.trim();
+            
+            // Auto add @ if missing
+            const oaId = oaIdRaw.startsWith('@') ? oaIdRaw : '@' + oaIdRaw;
+
+            if(!token || !secret) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ข้อมูลไม่ครบ',
+                    text: 'กรุณากรอก Access Token และ Channel Secret'
+                });
+                return;
+            }
+
+            const payload = {
+                line_oa_id: oaId,
+                access_token: token,
+                channel_secret: secret,
+                liff_id: liffId
+            };
+
+            try {
+                const btn = document.querySelector('button[onclick="saveLineSettings()"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...';
+                btn.disabled = true;
+
+                const res = await fetch('/api/save-line-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+
+                if(result.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Connected!',
+                        text: 'เชื่อมต่อ LINE OA สำเร็จ พร้อมใช้งานแล้ว',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: result.message
+                    });
+                }
+            } catch(e) {
+                console.error(e);
+                Swal.fire({ icon: 'error', title: 'Connection Failed', text: 'ไม่สามารถติดต่อ Server ได้' });
+            }
+        }
+
+        function copyWebhook() {
+            const url = document.getElementById('webhookUrl').innerText;
+            navigator.clipboard.writeText(url);
+            const icon = document.querySelector('.fa-copy');
+            icon.className = 'fas fa-check text-green-500';
+            setTimeout(() => { icon.className = 'far fa-copy text-blue-400 group-hover:text-blue-600'; }, 1500);
+        }
+    </script>
+</body>
+</html>

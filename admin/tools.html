@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiSnap | Upload & Manage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style> 
+        body { font-family: 'Kanit', sans-serif; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        .drag-active { border-color: #2563eb !important; background-color: #eff6ff !important; }
+    </style>
+</head>
+<body class="bg-[#f8fafc] flex h-screen overflow-hidden">
+    
+    <aside id="sidebar-container" class="flex-shrink-0 hidden md:flex h-full z-30"></aside>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <div id="header-container" class="w-full sticky top-0 z-20 bg-white border-b border-gray-100"></div>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-8">
+            <div class="w-full animate-fade-in max-w-7xl mx-auto">
+                
+                <div class="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6 rounded-r shadow-sm flex items-start">
+                    <i class="fas fa-exclamation-triangle text-orange-400 mt-1 mr-3"></i>
+                    <div>
+                        <p class="text-sm text-orange-700 font-bold">คำแนะนำการอัปโหลด</p>
+                        <p class="text-xs text-orange-600 mt-1">ควรระบุชื่อไฟล์ให้ชัดเจน หรืออัปโหลดครั้งละไม่เกิน 500 รูป เพื่อประสิทธิภาพสูงสุดของ AI</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <a href="/events" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-arrow-left"></i></a>
+                            <h2 class="text-2xl font-bold text-gray-800">Upload Photos</h2>
+                        </div>
+                        <p class="text-gray-500 text-sm mt-1 ml-6">Event: <span id="eventNameDisplay" class="text-blue-600 font-medium">Loading...</span></p>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <button onclick="rescanFace()" class="bg-[#10b981] hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition flex items-center gap-2">
+                            <i class="fas fa-sync-alt"></i> Rescan Face
+                        </button>
+                    </div>
+                </div>
+
+                <div id="dropZone" class="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-10 flex flex-col items-center justify-center text-center transition-colors cursor-pointer hover:border-blue-400 hover:bg-gray-50 mb-8 h-64" onclick="document.getElementById('fileInput').click()">
+                    <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-3xl mb-4 pointer-events-none">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-700 pointer-events-none">Drop your photos here</h3>
+                    <p class="text-gray-400 text-sm mt-1 mb-4 pointer-events-none">or click to browse from your device</p>
+                    <div class="flex gap-2 pointer-events-none">
+                        <span class="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded uppercase">JPG</span>
+                        <span class="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded uppercase">PNG</span>
+                        <span class="px-2 py-1 bg-green-100 text-green-600 text-[10px] font-bold rounded uppercase">Auto AI</span>
+                    </div>
+                    <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <h4 class="text-2xl font-bold text-gray-800" id="statTotal">0</h4>
+                        <p class="text-xs text-gray-400 uppercase font-medium">Total Photos</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <h4 class="text-2xl font-bold text-blue-600" id="statUploading">0</h4>
+                        <p class="text-xs text-gray-400 uppercase font-medium">Uploading</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-center">
+                        <h4 class="text-2xl font-bold text-green-500" id="statSuccess">0</h4>
+                        <p class="text-xs text-gray-400 uppercase font-medium">Completed</p>
+                    </div>
+                </div>
+
+                <div class="mb-4 flex items-center justify-between">
+                    <h3 class="font-bold text-gray-700">Uploaded Photos</h3>
+                    <button onclick="loadPhotos()" class="text-xs text-blue-500 hover:underline"><i class="fas fa-sync mr-1"></i> Refresh</button>
+                </div>
+
+                <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <div class="col-span-full py-10 text-center text-gray-400">
+                        <i class="fas fa-circle-notch fa-spin mr-2"></i> Loading photos...
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/admin_assets/layout.js"></script>
+    <script>
+        const eventId = window.location.pathname.split('/').pop();
+        let totalPhotos = 0;
+        let uploadingCount = 0;
+
+        // [NEW] Global Escape Key Listener (ป้องกันเผื่ออนาคตมี Modal ในหน้านี้)
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                // ถ้ามี Modal ไหนเปิดอยู่ ให้สั่งปิดได้เลย (รองรับการขยายผลในอนาคต)
+                const printModal = document.getElementById('printModal'); // ตัวอย่างเผื่ออนาคตยก Print Modal มาไว้หน้านี้
+                if (printModal && !printModal.classList.contains('hidden')) {
+                    closePrintModal();
+                }
+            }
+        });
+
+        window.onload = function() {
+            loadEventInfo();
+            loadPhotos();
+            setupDragDrop();
+        };
+
+        // ... (ฟังก์ชันอื่นๆ คงเดิมจากเวอร์ชันก่อนหน้า) ...
+        async function loadEventInfo() {
+            try {
+                const res = await fetch(`/api/get-event/${eventId}`);
+                const data = await res.json();
+                document.getElementById('eventNameDisplay').innerText = data.event_name || data.name || 'Unknown';
+            } catch(e) {}
+        }
+        
+        async function loadPhotos() {
+            const grid = document.getElementById('galleryGrid');
+            try {
+                const res = await fetch(`/api/photos/${eventId}`);
+                const data = await res.json();
+                
+                totalPhotos = data.photos.length;
+                updateStats();
+
+                if (data.photos.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full py-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            <i class="far fa-images text-4xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-500 text-sm">ยังไม่มีรูปภาพในงานนี้</p>
+                        </div>`;
+                    return;
+                }
+
+                grid.innerHTML = data.photos.map(photo => `
+                    <div class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                        <img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                            <a href="${photo.original}" target="_blank" class="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 backdrop-blur-sm transition"><i class="fas fa-expand"></i></a>
+                            <button onclick="deletePhoto('${photo.name}')" class="p-2 bg-red-500/80 text-white rounded-full hover:bg-red-600 backdrop-blur-sm transition"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition">
+                            <p class="text-[10px] text-white truncate font-mono">${photo.name}</p>
+                        </div>
+                        <div class="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full shadow-sm" title="AI Indexed"></div>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error(e);
+                grid.innerHTML = '<p class="text-red-500 col-span-full text-center">Failed to load photos.</p>';
+            }
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) uploadFiles(files);
+        }
+
+        async function uploadFiles(files) {
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+
+            uploadingCount = files.length;
+            updateStats();
+
+            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+            Toast.fire({ icon: 'info', title: `กำลังอัปโหลด ${files.length} รูป...` });
+
+            try {
+                const res = await fetch(`/api/upload/${eventId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    Toast.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!' });
+                    uploadingCount = 0;
+                    loadPhotos(); 
+                } else {
+                    Toast.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด' });
+                    uploadingCount = 0;
+                    updateStats();
+                }
+            } catch (e) {
+                console.error(e);
+                Toast.fire({ icon: 'error', title: 'เชื่อมต่อ Server ไม่ได้' });
+                uploadingCount = 0;
+                updateStats();
+            }
+        }
+
+        function setupDragDrop() {
+            const dropZone = document.getElementById('dropZone');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-active'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-active'), false);
+            });
+
+            dropZone.addEventListener('drop', handleDrop, false);
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if(files.length > 0) uploadFiles(files);
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').innerText = totalPhotos;
+            document.getElementById('statUploading').innerText = uploadingCount;
+            document.getElementById('statSuccess').innerText = totalPhotos; 
+        }
+
+        async function rescanFace() {
+            Swal.fire({
+                title: 'Rescan Face AI',
+                text: 'ระบบกำลังตรวจสอบและ Index ใบหน้าจากรูปภาพทั้งหมดใหม่...',
+                icon: 'info',
+                timer: 2000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                willClose: () => {
+                    Swal.fire('Completed', 'ประมวลผลใบหน้าเสร็จสิ้น', 'success');
+                }
+            });
+        }
+
+        function deletePhoto(name) {
+             Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "รูปภาพนี้จะถูกลบถาวรและไม่สามารถกู้คืนได้",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ลบเลย',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        // [แก้ไขแล้ว] เปลี่ยน URL ให้ตรงกับเซิร์ฟเวอร์ และรองรับชื่อไฟล์ที่มีเว้นวรรค
+                        const res = await fetch(`/api/delete/${eventId}/${encodeURIComponent(name)}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (res.ok) {
+                            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                            Toast.fire({ icon: 'success', title: 'ลบรูปภาพเรียบร้อย' });
+                            loadPhotos(); 
+                        } else {
+                            Swal.fire('Error', 'ไม่สามารถลบไฟล์ได้', 'error');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        Swal.fire('Error', 'เชื่อมต่อ Server ไม่ได้', 'error');
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
