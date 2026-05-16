@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MultiSnap | Gallery</title>
+    
+    <meta property="og:title" content="Event Photo Gallery | รับรูปภาพของคุณ">
+    <meta property="og:description" content="คลิกเพื่อดูรูปภาพทั้งหมด และสแกนใบหน้าเพื่อรับรูปของคุณผ่าน LINE ทันที!">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1000&auto=format&fit=crop">
+    <meta property="og:type" content="website">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #0c3355; color: white; overflow-x: hidden; }
+        .main-layout { display: flex; flex-direction: column; min-height: 100vh; }
+        
+        @media (min-width: 1024px) {
+            .main-layout { flex-direction: row; padding: 30px; gap: 40px; max-width: 1800px; margin: 0 auto; }
+            .sidebar-desktop { display: flex !important; width: 300px; height: calc(100vh - 60px); position: sticky; top: 30px; background: #0a2a4a; border-radius: 24px; flex-direction: column; padding: 40px 30px; flex-shrink: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+            .header-mobile { display: none !important; }
+            .content-area { flex: 1; }
+        }
+
+        @media (max-width: 1023px) {
+            .sidebar-desktop { display: none !important; }
+            .header-mobile { display: flex; flex-direction: column; align-items: center; background: linear-gradient(180deg, #0f3e66 0%, #0c3355 100%); padding: 30px 20px; text-align: center; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+            .content-area { width: 100%; }
+        }
+
+        .masonry-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 16px 120px 16px; box-sizing: border-box; width: 100%; opacity: 0; transition: opacity 0.5s ease; }
+        .masonry-grid.loaded { opacity: 1; }
+        @media (min-width: 768px) { .masonry-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 1024px) { .masonry-grid { grid-template-columns: repeat(4, 1fr); padding-bottom: 50px; } }
+
+        .masonry-item { position: relative; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.05); border: 3px solid transparent; box-sizing: border-box; transition: border-color 0.2s; aspect-ratio: 1 / 1; }
+        .masonry-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease; cursor: pointer; pointer-events: none; -webkit-user-select: none; user-select: none; }
+        
+        .check-btn { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border: 2px solid rgba(255,255,255,0.9); border-radius: 50%; background: rgba(0,0,0,0.2); z-index: 50; cursor: pointer; display: flex; align-items: center; justify-content: center; color: transparent; transition: 0.2s; backdrop-filter: blur(2px); font-size: 12px; }
+        .masonry-item.selected { border-color: #10b981; }
+        .masonry-item.selected .check-btn { background: #10b981; border-color: #10b981; color: white; transform: scale(1.1); }
+        
+        .zoom-btn { position: absolute; bottom: 8px; right: 8px; width: 32px; height: 32px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; z-index: 60; transition: transform 0.1s; border: 1px solid rgba(255,255,255,0.2); }
+
+        .sticky-toolbar { position: sticky; top: 0; z-index: 40; background: rgba(12, 51, 85, 0.95); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        #selection-bar { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 3500; display: none; flex-direction: column; align-items: center; gap: 10px; width: 95%; max-width: 400px; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .selection-counter { background: #0f172a; color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        /* 🚀 อัปเดต CSS ของแถบ Selection ให้ปุ่มแบ่งครึ่งกันพอดี */
+        .selection-actions { background: white; border-radius: 50px; padding: 6px; width: 100%; display: flex; justify-content: space-between; gap: 6px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .sel-btn-line { flex: 1; padding: 12px 5px; border-radius: 40px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; color: #ffffff; background: #06C755; font-size: 14px; text-align: center; }
+        .sel-btn-download { flex: 1; padding: 12px 5px; border-radius: 40px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; color: #0c3355; background: #f1f5f9; border: 1px solid #e2e8f0; font-size: 14px; text-align: center; }
+
+        @keyframes slideUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+        #lightbox { position: fixed; inset: 0; z-index: 4000; display: none; flex-direction: column; background: rgba(15, 23, 42, 0.98); }
+        .lb-top-bar { display: flex; justify-content: space-between; padding: 20px; position: relative; z-index: 4010; }
+        .lb-icon-btn { width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
+        .lb-main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; overflow: hidden; }
+        .lb-img-wrapper { position: relative; display: inline-block; max-width: 95%; max-height: 80%; transition: all 0.3s ease; }
+        .lb-img-wrapper img#lb-img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: block; transition: opacity 0.3s; }
+
+        .qr-corner-wrapper { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            width: 15%; 
+            max-width: 55px; 
+            min-width: 40px; 
+            aspect-ratio: 1/1;
+            background: white; 
+            padding: 3px; 
+            border-radius: 6px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            z-index: 100; 
+            cursor: zoom-in;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .qr-corner-wrapper img { width: 100%; height: 100%; object-fit: contain; }
+
+        .qr-corner-wrapper.expanded {
+            position: fixed;
+            top: 50% !important;
+            right: 50% !important;
+            transform: translate(50%, -50%);
+            width: 250px;
+            max-width: 80vw;
+            height: auto;
+            aspect-ratio: 1/1;
+            z-index: 5000;
+            padding: 10px;
+            border-radius: 15px;
+            cursor: zoom-out;
+        }
+        .qr-corner-wrapper.expanded ~ img#lb-img { opacity: 0.2; filter: blur(4px); }
+        
+        .lb-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 3010; cursor: pointer; }
+        .lb-prev { left: 10px; } .lb-next { right: 10px; }
+        .lb-footer { padding: 10px 20px 30px 20px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .lb-mobile-actions { width: 100%; display: flex; justify-content: center; align-items: center; }
+        .lb-action-btn { width: 100%; max-width: 320px; padding: 15px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; background: #06C755; color: white; font-size: 16px; box-shadow: 0 4px 15px rgba(6, 199, 85, 0.3); }
+
+        .lb-filmstrip { display: flex; gap: 6px; overflow-x: auto; padding: 5px 0; justify-content: center; -webkit-overflow-scrolling: touch; }
+        .lb-filmstrip img { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; opacity: 0.5; border: 2px solid transparent; transition: 0.2s; cursor: pointer; }
+        .lb-filmstrip img.active { opacity: 1; border-color: #fff; transform: scale(1.1); }
+
+        .bottom-nav-container { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 320px; z-index: 2500; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; }
+        .bottom-nav { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; background: white; border-radius: 40px; height: 70px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); padding: 0 10px; position: relative; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-size: 11px; cursor: pointer; height: 100%; transition: color 0.2s; }
+        .nav-item.active { color: #0c3355; font-weight: bold; }
+        .nav-item i { font-size: 22px; margin-bottom: 2px; }
+        
+        .scan-center-wrapper { display: flex; justify-content: center; align-items: center; height: 100%; }
+        .scan-center { width: 58px; height: 58px; background: #0c3355; border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; margin-top: -30px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 26px; cursor: pointer; transition: transform 0.2s; }
+        .scan-center:active { transform: scale(0.9); }
+        .fa-spin-fast { animation: fa-spin 0.6s infinite linear; }
+
+        #aiOverlay { position: fixed; inset: 0; background: rgba(12, 51, 85, 0.95); z-index: 6000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        #gallery-loader { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #0c3355; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+    <div id="gallery-loader">
+        <div class="text-center">
+            <i class="fas fa-circle-notch fa-spin text-4xl text-blue-400 mb-4"></i>
+            <p class="text-sm opacity-70">กำลังโหลดแกลลอรี่...</p>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <aside class="sidebar-desktop">
+            <h1 id="desktop-event-name" class="text-2xl font-bold mb-4 mt-4 uppercase">LOADING...</h1>
+            <p class="text-blue-200 text-sm font-light mb-8">Memory Gallery</p>
+        </aside>
+
+        <main class="content-area">
+            <header class="header-mobile">
+                <p id="mobile-event-name" class="text-xl font-bold uppercase tracking-wider">LOADING...</p>
+            </header>
+
+            <div class="sticky-toolbar">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-images text-xl text-blue-400"></i>
+                    <span class="text-xl font-bold">Gallery</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openRegisterModal()" class="bg-[#06C755] px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg flex items-center gap-1">
+                        <i class="fas fa-bell"></i> แจ้งเตือนเมื่อมีรูปใหม่
+                    </button>
+                    <button onclick="toggleSelectMode()" id="btn-select" class="bg-white/10 px-4 py-1.5 rounded-full text-xs border border-white/20">เลือก</button>
+                </div>
+            </div>
+
+            <div id="photo-grid" class="masonry-grid"></div>
+        </main>
+    </div>
+
+    <div id="selection-bar">
+        <div class="selection-counter"><span id="sel-count">0</span> รูปภาพที่เลือก</div>
+        <div class="selection-actions">
+            <div class="sel-btn-download" onclick="downloadSelectedPhotos()">
+                <i class="fas fa-download text-lg"></i> <span>บันทึกเครื่อง</span>
+            </div>
+            <div class="sel-btn-line" onclick="sendSelectedToLine()">
+                <i class="fab fa-line text-lg"></i> <span>ส่งเข้า LINE</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox">
+        <div class="lb-top-bar">
+            <div class="lb-icon-btn" onclick="closeLightbox()"><i class="fas fa-times"></i></div>
+            <div class="lb-icon-btn"><i class="fas fa-expand-arrows-alt"></i></div>
+        </div>
+        <div class="lb-main">
+            <div class="lb-arrow lb-prev" onclick="changeImg(-1)"><i class="fas fa-chevron-left"></i></div>
+            <div class="lb-img-wrapper">
+                <img id="lb-img" src="" alt="Photo">
+                <div class="qr-corner-wrapper" onclick="toggleQRZoom(event)">
+                    <img id="lb-qr" src="" alt="QR">
+                </div>
+            </div>
+            <div class="lb-arrow lb-next" onclick="changeImg(1)"><i class="fas fa-chevron-right"></i></div>
+        </div>
+        <div class="lb-footer">
+          <div class="flex justify-between gap-2 w-full max-w-[400px] mx-auto">
+            <button class="flex-1 bg-slate-200 text-[#0c3355] py-3 rounded-full font-bold text-sm flex items-center justify-center gap-2" onclick="downloadCurrentPhoto()">
+              <i class="fas fa-download"></i> บันทึกลงเครื่อง
+            </button>
+            <button class="flex-1 bg-[#06C755] text-white py-3 rounded-full font-bold text-sm flex items-center justify-center gap-2" onclick="sendToLine()">
+              <i class="fab fa-line text-xl"></i> ส่งเข้า LINE
+            </button>
+          </div>
+          <div class="lb-filmstrip mt-4" id="lb-strip"></div>
+        </div>
+    </div>
+
+    <div class="bottom-nav-container" id="bottom-nav-bar">
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="window.location.reload()">
+                <i class="fas fa-images"></i><span>อัลบั้ม</span>
+            </div>
+            <div class="scan-center-wrapper">
+                <div class="scan-center" onclick="refreshGalleryManually()">
+                    <i class="fas fa-sync-alt" id="main-refresh-icon"></i>
+                </div>
+            </div>
+            <div class="nav-item" onclick="toggleSelectMode()">
+                <i class="fas fa-check-double"></i><span>เลือกรูป</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="register-modal" style="display: none; position: fixed; inset: 0; background: rgba(12, 51, 85, 0.95); z-index: 5000; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+        <div class="bg-white text-[#0c3355] rounded-2xl p-6 w-full max-w-sm text-center relative shadow-2xl">
+            <button onclick="closeRegisterModal()" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 text-2xl"><i class="fas fa-times"></i></button>
+            <h2 class="text-xl font-bold mb-2"><i class="fas fa-user-circle text-[#06C755]"></i> แจ้งเตือนรูปของฉัน</h2>
+            <p class="text-sm text-gray-500 mb-4">ถ่ายเซลฟี่เพื่อให้ AI ค้นหารูปของคุณในงาน และส่งเข้า LINE อัตโนมัติ</p>
+            
+            <input type="file" id="face-upload" accept="image/*" capture="user" class="hidden" onchange="previewFace(event)">
+            
+            <div onclick="document.getElementById('face-upload').click()" class="w-32 h-32 mx-auto bg-gray-100 rounded-full border-4 border-dashed border-gray-300 flex items-center justify-center cursor-pointer overflow-hidden mb-6 relative">
+                <img id="face-preview" src="" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+                <i id="face-icon" class="fas fa-camera text-4xl text-gray-400"></i>
+            </div>
+            
+            <p class="text-[10px] text-gray-400 mt-2 mb-4 leading-tight">
+                <i class="fas fa-shield-alt text-green-500"></i> ข้อมูลภาพถ่ายนี้ใช้เพื่อค้นหารูปในงานนี้เท่านั้น และจะถูกลบออกจากระบบเมื่อจบงาน (PDPA)
+            </p>
+            
+            <button onclick="submitFaceRegistration()" class="w-full bg-[#06C755] text-white font-bold py-3 rounded-xl shadow-lg flex justify-center items-center gap-2 text-lg">
+                <i class="fas fa-save"></i> บันทึกใบหน้า
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let eventId = urlParams.get('event') || window.location.pathname.split('/').pop();
+        if (eventId === 'gallery') eventId = '';
+
+        let allPhotos = [];
+        let currentPhotos = [];
+        let currentIndex = 0;
+        let isSelectMode = false;
+        let selectedPhotos = new Set();
+        let liffId = "";
+        
+        // --- 🚀 ฟังก์ชันวาดลายน้ำ (รองรับทั้ง Image และ Text) ---
+        async function addWatermark(imageUrl) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = imageUrl;
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // วาดข้อความลายน้ำ
+                    const fontSize = Math.floor(canvas.width * 0.035);
+                    ctx.font = `bold ${fontSize}px Kanit`;
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.textAlign = "right";
+                    const margin = canvas.width * 0.04;
+                    ctx.fillText("MultiSnap Gallery", canvas.width - margin, canvas.height - margin);
+
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+                };
+                img.onerror = () => fetch(imageUrl).then(r => r.blob()).then(resolve).catch(reject);
+            });
+        }
+
+        async function init() {
+            try {
+                if (eventId) {
+                    const res = await fetch(`/api/get-event/${eventId}`);
+                    const data = await res.json();
+                    document.getElementById('desktop-event-name').innerText = data.event_name || eventId;
+                    document.getElementById('mobile-event-name').innerText = data.event_name || eventId;
+                }
+                await loadGallery();
+                await initLiff();
+
+                document.addEventListener('keydown', function(e) {
+                    const lightbox = document.getElementById('lightbox');
+                    if (lightbox.style.display === 'flex') {
+                        if (e.key === 'Escape') closeLightbox();
+                        else if (e.key === 'ArrowRight') changeImg(1);
+                        else if (e.key === 'ArrowLeft') changeImg(-1);
+                    }
+                });
+
+            } catch(e) { console.error("Init Error:", e); }
+        }
+
+        async function initLiff() {
+            try {
+                const res = await fetch('/api/get-line-settings');
+                const data = await res.json();
+                liffId = data.liff_id;
+                if (liffId) {
+                    await liff.init({ liffId: liffId });
+                    if (!liff.isLoggedIn()) liff.login();
+                }
+            } catch(e) { console.log("LIFF Error:", e); }
+        }
+
+        async function loadGallery() {
+            const loader = document.getElementById('gallery-loader');
+            if (loader) loader.style.display = 'flex';
+            try {
+                const res = await fetch(`/api/photos/${eventId}`);
+                const data = await res.json();
+                allPhotos = data.photos.map(p => typeof p === 'string' ? {url: p, name: p.split('/').pop()} : p) || [];
+                allPhotos.sort((a, b) => b.name.localeCompare(a.name, undefined, {numeric: true}));
+                currentPhotos = allPhotos;
+                renderPhotos(allPhotos);
+            } catch(e) { console.error("Fetch Error:", e); }
+            finally { 
+                if (loader) loader.style.display = 'none';
+                document.getElementById('photo-grid').classList.add('loaded');
+            }
+        }
+
+        async function refreshGalleryManually() {
+            const icon = document.getElementById('main-refresh-icon');
+            if (icon) icon.classList.add('fa-spin-fast');
+            await loadGallery();
+            setTimeout(function() {
+                if (icon) icon.classList.remove('fa-spin-fast');
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'อัปเดตรูปภาพเรียบร้อย', showConfirmButton: false, timer: 1500 });
+            }, 700);
+        }
+
+        function renderPhotos(photos) {
+            const grid = document.getElementById('photo-grid');
+            grid.innerHTML = '';
+            photos.forEach(function(p, idx) {
+                const div = document.createElement('div');
+                div.className = 'masonry-item';
+                div.onclick = function() { onImageClick(idx); };
+                
+                const parts = p.url.split('/');
+                const fileName = parts.pop();
+                const thumbUrl = parts.join('/') + '/thumbnails/' + fileName;
+                
+                div.innerHTML = `
+                    <img src="${thumbUrl}" loading="lazy" onerror="this.src='${p.url}'">
+                    <div class="check-btn" onclick="event.stopPropagation(); toggleSelect(${idx})">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="zoom-btn" onclick="event.stopPropagation(); openLightbox(${idx})">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function onImageClick(idx) {
+            if (isSelectMode) toggleSelect(idx);
+            else openLightbox(idx);
+        }
+
+        function toggleSelectMode() {
+            isSelectMode = !isSelectMode;
+            document.getElementById('btn-select').innerText = isSelectMode ? "ยกเลิก" : "เลือก";
+            if (!isSelectMode) {
+                selectedPhotos.clear();
+                document.querySelectorAll('.masonry-item.selected').forEach(el => el.classList.remove('selected'));
+                updateSelectionUI();
+            }
+        }
+
+        function toggleSelect(idx) {
+            const items = document.querySelectorAll('.masonry-item');
+            const item = items[idx];
+            if (!item.classList.contains('selected') && selectedPhotos.size >= 20) {
+                Swal.fire('จำกัดจำนวน', 'เลือกได้สูงสุด 20 รูปครับ', 'warning');
+                return;
+            }
+            item.classList.toggle('selected');
+            if (item.classList.contains('selected')) selectedPhotos.add(idx);
+            else selectedPhotos.delete(idx);
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedPhotos.size;
+            const bar = document.getElementById('selection-bar');
+            const nav = document.getElementById('bottom-nav-bar');
+            document.getElementById('sel-count').innerText = count;
+            if (count > 0) {
+                bar.style.display = 'flex';
+                nav.style.transform = 'translate(-50%, 150px)'; 
+                nav.style.opacity = '0';
+            } else {
+                bar.style.display = 'none';
+                nav.style.transform = 'translate(-50%, 0)'; 
+                nav.style.opacity = '1';
+            }
+        }
+
+        function openLightbox(idx) {
+            currentIndex = idx;
+            const photo = currentPhotos[idx];
+            document.getElementById('lb-img').src = photo.url;
+            const fullUrl = window.location.origin + photo.url;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(fullUrl)}`;
+            document.getElementById('lb-qr').src = qrUrl;
+            
+            document.querySelector('.qr-corner-wrapper').classList.remove('expanded');
+            
+            document.getElementById('lightbox').style.display = 'flex';
+            renderFilmstrip(idx);
+        }
+
+        function renderFilmstrip(activeIdx) {
+            const strip = document.getElementById('lb-strip');
+            strip.innerHTML = '';
+            const start = Math.max(0, activeIdx - 3);
+            const end = Math.min(currentPhotos.length, activeIdx + 4);
+            for(let i = start; i < end; i++) {
+                const img = document.createElement('img');
+                img.src = currentPhotos[i].url;
+                if(i === activeIdx) img.className = 'active';
+                img.onclick = () => openLightbox(i);
+                strip.appendChild(img);
+            }
+        }
+
+        function closeLightbox() { document.getElementById('lightbox').style.display = 'none'; }
+        
+        function changeImg(dir) {
+            let next = currentIndex + dir;
+            if (next >= 0 && next < currentPhotos.length) openLightbox(next);
+        }
+
+        function toggleQRZoom(e) {
+            e.stopPropagation();
+            const qr = document.querySelector('.qr-corner-wrapper');
+            qr.classList.toggle('expanded');
+        }
+
+        async function sendToLine(source = 'lightbox') {
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+            Swal.fire({ title: 'กำลังส่ง...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const profile = await liff.getProfile();
+                const photo = (source === 'search_results') ? currentPhotos[0] : currentPhotos[currentIndex];
+                let fullUrl = photo.url.startsWith('http') ? photo.url : window.location.origin + photo.url;
+                const res = await fetch('/api/send-line', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId: profile.userId, imageUrl: fullUrl })
+                });
+                const result = await res.json();
+                if(result.status === 'success') Swal.fire({ icon: 'success', title: 'ส่งสำเร็จ!', timer: 1500, showConfirmButton: false });
+            } catch(e) { Swal.fire('Error', 'ส่งรูปไม่สำเร็จ', 'error'); }
+        }
+
+        async function sendSelectedToLine() {
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+            const indices = Array.from(selectedPhotos);
+            Swal.fire({ title: 'กำลังส่ง...', text: `จำนวน ${indices.length} รูป`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const profile = await liff.getProfile();
+            for (let i of indices) {
+                let url = currentPhotos[i].url.startsWith('http') ? currentPhotos[i].url : window.location.origin + currentPhotos[i].url;
+                await fetch('/api/send-line', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: profile.userId, imageUrl: url }) });
+                await new Promise(r => setTimeout(r, 400));
+            }
+            Swal.fire({ icon: 'success', title: 'ส่งครบเรียบร้อย!' });
+            toggleSelectMode();
+        }
+
+        // 🚀 ฟังก์ชันใหม่: โหลดรูปลงเครื่องจากการเลือกหลายรูป (บีบอัด Zip ถ้าเลือกเยอะ)
+        async function downloadSelectedPhotos() {
+            const indices = Array.from(selectedPhotos);
+            if (indices.length === 0) return;
+
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            if (indices.length === 1) {
+                // ถ้าเลือก 1 รูป: โหลดแบบปกติ (แชร์เข้า Camera Roll ของ iOS)
+                const photo = currentPhotos[indices[0]];
+                const fullUrl = photo.url.startsWith('http') ? photo.url : window.location.origin + photo.url;
+                
+                Swal.fire({ title: 'กำลังเตรียมรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                try {
+                    const response = await fetch(fullUrl);
+                    const blob = await response.blob();
+                    
+                    if (navigator.share && navigator.canShare) {
+                        const file = new File([blob], photo.name, { type: blob.type });
+                        if (navigator.canShare({ files: [file] })) {
+                            Swal.close();
+                            await navigator.share({ files: [file], title: 'บันทึกรูปภาพ' });
+                            toggleSelectMode(); 
+                            return;
+                        }
+                    }
+                    Swal.close();
+                    saveAs(blob, photo.name);
+                    if (isIOS) {
+                        Swal.fire({ title: 'บันทึกสำเร็จ!', text: 'หากไม่พบในแกลลอรี่ ให้เช็กในแอป "ไฟล์" (Files) ของ iPhone นะครับ', icon: 'info', confirmButtonColor: '#0c3355' });
+                    }
+                    toggleSelectMode();
+                } catch (error) {
+                    Swal.close();
+                    Swal.fire('Error', 'ไม่สามารถดาวน์โหลดรูปภาพได้', 'error');
+                }
+            } else {
+                // ถ้าเลือกหลายรูป: โหลดเป็นไฟล์ Zip (JSZip) เพื่อป้องกัน Browser บล็อกการโหลดรัวๆ
+                Swal.fire({ title: 'กำลังบีบอัดไฟล์ (Zip)...', text: `กำลังดึงภาพ ${indices.length} รูป`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                try {
+                    const zip = new JSZip();
+                    const folder = zip.folder("MultiSnap_Photos");
+                    
+                    for (let i of indices) {
+                        let photo = currentPhotos[i];
+                        let fullUrl = photo.url.startsWith('http') ? photo.url : window.location.origin + photo.url;
+                        const response = await fetch(fullUrl);
+                        const blob = await response.blob();
+                        folder.file(photo.name, blob);
+                    }
+                    
+                    const content = await zip.generateAsync({ type: "blob" });
+                    saveAs(content, "MultiSnap_Photos.zip");
+                    
+                    Swal.fire({ icon: 'success', title: 'ดาวน์โหลดสำเร็จ!', text: 'ไฟล์รูปภาพทั้งหมดถูกจัดเก็บในรูปแบบ Zip แล้วครับ' });
+                    toggleSelectMode();
+                } catch (error) {
+                    console.error(error);
+                    Swal.fire('Error', 'เกิดข้อผิดพลาดในการรวบรวมไฟล์รูปภาพ', 'error');
+                }
+            }
+        }
+
+        // ================= ฟังก์ชันสำหรับลงทะเบียนใบหน้า =================
+        function openRegisterModal() {
+            if (!liff.isLoggedIn()) {
+                Swal.fire('กรุณาเข้าสู่ระบบ', 'ต้องเปิดผ่านแอป LINE เพื่อลงทะเบียนใบหน้าครับ', 'warning').then(() => liff.login());
+                return;
+            }
+            document.getElementById('register-modal').style.display = 'flex';
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('register-modal').style.setProperty('display', 'none', 'important');
+            document.getElementById('face-upload').value = '';
+            document.getElementById('face-preview').style.display = 'none';
+            document.getElementById('face-icon').style.display = 'block';
+        }
+
+        function previewFace(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('face-preview').src = e.target.result;
+                    document.getElementById('face-preview').style.display = 'block';
+                    document.getElementById('face-icon').style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function submitFaceRegistration() {
+            const fileInput = document.getElementById('face-upload');
+            const modal = document.getElementById('register-modal');
+
+            if (!fileInput.files.length) {
+                Swal.fire('แจ้งเตือน', 'กรุณากดที่ไอคอนกล้องเพื่อถ่ายเซลฟี่ก่อนครับ', 'warning');
+                return;
+            }
+            
+            if (!liff.isLoggedIn()) { 
+                liff.login(); 
+                return; 
+            }
+            
+            const userFaceFile = fileInput.files[0];
+            modal.style.setProperty('display', 'none', 'important');
+            
+            Swal.fire({ 
+                title: 'กำลังวิเคราะห์ใบหน้า...', 
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
+            });
+            
+            try {
+                const profile = await liff.getProfile();
+                const formData = new FormData();
+                formData.append('event_id', eventId || 'default_event'); 
+                formData.append('user_id', profile.userId);
+                formData.append('file', userFaceFile); 
+
+                const res = await fetch('/api/register-notification', { method: 'POST', body: formData });
+                const result = await res.json();
+                
+                fileInput.value = '';
+                document.getElementById('face-preview').style.display = 'none';
+                document.getElementById('face-icon').style.display = 'block';
+                
+                if (result.status === 'success') {
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: 'สำเร็จ!', 
+                        text: 'ระบบจดจำใบหน้าคุณแล้ว เมื่อมีรูปของคุณในงานเราจะส่งแจ้งเตือนทันทีครับ', 
+                        confirmButtonText: 'ตกลง',
+                        confirmButtonColor: '#06C755'
+                    });
+                } else {
+                    Swal.fire('ข้อผิดพลาด', result.message || 'ไม่พบใบหน้า กรุณาถ่ายใหม่ให้สว่างขึ้นครับ', 'error');
+                }
+            } catch (e) {
+                console.error("API Error:", e);
+                Swal.fire('เซิร์ฟเวอร์ขัดข้อง', 'ไม่สามารถเชื่อมต่อระบบ AI ได้ในขณะนี้', 'error');
+                
+                fileInput.value = '';
+                document.getElementById('face-preview').style.display = 'none';
+                document.getElementById('face-icon').style.display = 'block';
+            }
+        }
+        
+        async function downloadCurrentPhoto() {
+            const photo = currentPhotos[currentIndex];
+            const fullUrl = photo.url.startsWith('http') ? photo.url : window.location.origin + photo.url;
+            
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            Swal.fire({ title: 'กำลังเตรียมรูปภาพ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const response = await fetch(fullUrl);
+                const blob = await response.blob();
+                
+                if (navigator.share && navigator.canShare) {
+                    const file = new File([blob], photo.name, { type: blob.type });
+                    if (navigator.canShare({ files: [file] })) {
+                        Swal.close();
+                        await navigator.share({
+                            files: [file],
+                            title: 'บันทึกรูปภาพ',
+                        });
+                        return; 
+                    }
+                }
+
+                Swal.close();
+                saveAs(blob, photo.name);
+                
+                if (isIOS) {
+                     Swal.fire({
+                        title: 'บันทึกสำเร็จ!',
+                        text: 'หากรูปไม่เข้าอัลบั้ม ให้ลองเช็กในแอป "ไฟล์" (Files) ของ iPhone นะครับ',
+                        icon: 'info',
+                        confirmButtonText: 'ตกลง',
+                        confirmButtonColor: '#0c3355'
+                    });
+                }
+
+            } catch (error) {
+                console.error("Download Error:", error);
+                Swal.close();
+                Swal.fire({
+                    title: 'ระบบป้องกันการดาวน์โหลด',
+                    text: 'กรุณากด "เปิดรูป" จากนั้นให้แตะค้างที่รูปภาพเพื่อบันทึกลงเครื่องครับ',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'เปิดรูปภาพ',
+                    cancelButtonText: 'ยกเลิก',
+                    confirmButtonColor: '#06C755'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.open(fullUrl, '_blank');
+                    }
+                });
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

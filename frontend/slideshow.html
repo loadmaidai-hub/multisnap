@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Photo Wall</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #0f172a; overflow: hidden; }
+        
+        .masonry-grid { column-count: 3; column-gap: 16px; }
+        @media (min-width: 1024px) { .masonry-grid { column-count: 4; } }
+        @media (min-width: 1536px) { .masonry-grid { column-count: 5; } }
+
+        .photo-card {
+            break-inside: avoid;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background: #1e293b;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: slideIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        .photo-card img { width: 100%; height: auto; display: block; }
+
+        .new-badge {
+            position: absolute; top: 10px; right: 10px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white; font-size: 10px; padding: 4px 10px;
+            border-radius: 99px; font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+
+        /* ซ่อน Scrollbar แต่ยังเลื่อนได้ */
+        #wall-container::-webkit-scrollbar { display: none; }
+        #wall-container { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="flex h-screen w-screen overflow-hidden text-white bg-[#0f172a]">
+
+    <main class="flex-1 relative h-full flex flex-col overflow-hidden">
+        
+        <div class="absolute top-0 left-0 w-full p-6 bg-gradient-to-b from-[#0f172a]/90 to-transparent z-20 pointer-events-none">
+            <h1 class="text-4xl font-bold drop-shadow-lg flex items-center gap-3">
+                <i class="fas fa-camera text-blue-500"></i>
+                <span id="event-title">Live Gallery</span>
+            </h1>
+            <p class="text-gray-400 ml-1 text-lg drop-shadow-md">Real-time Photo Updates</p>
+        </div>
+
+        <div id="wall-container" class="flex-1 overflow-y-auto p-6 pt-28 pb-10 scroll-smooth">
+            <div id="photo-grid" class="masonry-grid"></div>
+            
+            <div id="empty-state" class="hidden h-full flex-col items-center justify-center text-gray-600 opacity-50 mt-20">
+                <i class="fas fa-images text-8xl mb-4"></i>
+                <p class="text-2xl">Waiting for photos...</p>
+            </div>
+        </div>
+    </main>
+
+    <aside class="w-[350px] bg-[#1e293b] border-l border-white/10 flex flex-col items-center justify-center p-8 z-30 shadow-2xl relative overflow-hidden flex-shrink-0">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
+        <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl -ml-32 -mb-32"></div>
+
+        <div class="relative z-10 text-center w-full">
+            <div class="bg-white p-4 rounded-3xl shadow-2xl inline-block mb-6 mx-auto transform hover:scale-105 transition duration-500">
+                <img id="qr-code-img" src="" alt="Loading QR..." class="w-48 h-48 object-contain">
+            </div>
+            
+            <h2 class="text-3xl font-bold mb-2">SCAN ME</h2>
+            <p class="text-blue-300 text-lg mb-8">เพื่อค้นหารูปของคุณ</p>
+            
+            <div class="bg-black/30 rounded-xl p-4 text-left space-y-3 backdrop-blur-sm border border-white/5">
+                <div class="flex items-center gap-3"><span class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">1</span><span class="text-sm text-gray-300">สแกน QR Code นี้</span></div>
+                <div class="flex items-center gap-3"><span class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">2</span><span class="text-sm text-gray-300">ถ่ายรูป Selfie ของคุณ</span></div>
+                <div class="flex items-center gap-3"><span class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">3</span><span class="text-sm text-gray-300">ระบบ AI จะหารูปให้ทันที!</span></div>
+            </div>
+        </div>
+        
+        <div class="absolute bottom-6 text-center w-full">
+            <p class="text-[10px] text-gray-600 uppercase tracking-widest">Powered by MultiSnap</p>
+        </div>
+    </aside>
+
+    <script>
+        // === CONFIG ===
+        const pathSegments = window.location.pathname.split('/');
+        let EVENT_ID = 'default';
+        if(pathSegments.includes('slideshow') && pathSegments.length > pathSegments.indexOf('slideshow') + 1) {
+             EVENT_ID = pathSegments[pathSegments.indexOf('slideshow') + 1];
+        } else {
+             const params = new URLSearchParams(window.location.search);
+             if(params.get('event')) EVENT_ID = params.get('event');
+        }
+
+        const POLL_INTERVAL = 3000;
+        let loadedPhotos = new Set();
+        let isAutoScrolling = true;
+        
+        // 🔥 ปรับความเร็วที่นี่ (1 = มาตรฐาน, 2 = เร็ว, 0.5 = ช้า)
+        let scrollSpeed = 1; 
+
+        async function init() {
+            // Setup QR
+            try {
+                const settingsRes = await axios.get('/api/get-line-settings');
+                const liffId = settingsRes.data.liff_id;
+                let targetUrl = liffId ? `https://liff.line.me/${liffId}?event=${EVENT_ID}` : `${window.location.origin}/gallery?event=${EVENT_ID}`;
+                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(targetUrl)}`;
+                document.getElementById('qr-code-img').src = qrApiUrl;
+            } catch (e) { 
+                const fallbackUrl = `${window.location.origin}/gallery?event=${EVENT_ID}`;
+                document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(fallbackUrl)}`;
+            }
+
+            // Setup Event Title
+            try {
+                const res = await axios.get(`/api/get-event/${EVENT_ID}`);
+                if(res.data.event_name) document.getElementById('event-title').innerText = res.data.event_name;
+            } catch(e) {}
+
+            // Start Loops
+            fetchPhotos();
+            setInterval(fetchPhotos, POLL_INTERVAL);
+            startScrollEngine();
+        }
+
+        async function fetchPhotos() {
+            try {
+                const res = await axios.get(`/api/photos/${EVENT_ID}`);
+                const photos = res.data.photos;
+
+                if (!photos || photos.length === 0) {
+                    document.getElementById('empty-state').classList.remove('hidden');
+                    document.getElementById('empty-state').classList.add('flex');
+                    return;
+                } else {
+                    document.getElementById('empty-state').classList.add('hidden');
+                    document.getElementById('empty-state').classList.remove('flex');
+                }
+
+                const grid = document.getElementById('photo-grid');
+                let hasNewPhoto = false;
+
+                // Loop photos (Reverse to show newest at top initially)
+                for (let i = photos.length - 1; i >= 0; i--) {
+                    const photo = photos[i];
+                    if (loadedPhotos.has(photo.name)) continue;
+
+                    loadedPhotos.add(photo.name);
+                    hasNewPhoto = true;
+
+                    const card = document.createElement('div');
+                    card.className = 'photo-card';
+                    card.innerHTML = `<img src="${photo.url}" loading="lazy" alt="Photo"><div class="new-badge">NEW</div>`;
+                    grid.prepend(card); 
+
+                    setTimeout(() => {
+                        const badge = card.querySelector('.new-badge');
+                        if(badge) badge.style.opacity = '0'; 
+                    }, 10000);
+                }
+
+                // If new photo arrives, scroll to top to show it
+                if (hasNewPhoto) {
+                    const container = document.getElementById('wall-container');
+                    container.scrollTo({ top: 0, behavior: 'smooth' });
+                    
+                    isAutoScrolling = false;
+                    setTimeout(() => { isAutoScrolling = true; }, 3000);
+                }
+
+            } catch (e) { console.error("Fetch error", e); }
+        }
+
+        // === ✅ FIXED SCROLL ENGINE ===
+        function startScrollEngine() {
+            const container = document.getElementById('wall-container');
+            
+            function step() {
+                // คำนวณความสูงจริง
+                const isScrollable = container.scrollHeight > container.clientHeight;
+
+                if (isAutoScrolling && isScrollable) {
+                    // เลื่อนลง
+                    container.scrollTop += scrollSpeed;
+                    
+                    // เช็คว่าถึงขอบล่างหรือยัง (ใช้ Math.ceil เพื่อแก้ปัญหาทศนิยม)
+                    const scrolledToBottom = Math.ceil(container.scrollTop + container.clientHeight) >= container.scrollHeight;
+
+                    if (scrolledToBottom) {
+                        isAutoScrolling = false;
+                        
+                        // หยุด 2 วินาทีเมื่อถึงล่างสุด
+                        setTimeout(() => {
+                            // ดีดกลับขึ้นบน
+                            container.scrollTo({ top: 0, behavior: 'smooth' });
+                            
+                            // รอให้ดีดกลับเสร็จ (3 วินาที) แล้วเริ่มเลื่อนใหม่
+                            setTimeout(() => {
+                                isAutoScrolling = true;
+                            }, 3000);
+                        }, 2000);
+                    }
+                }
+                requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        init();
+    </script>
+</body>
+</html>
