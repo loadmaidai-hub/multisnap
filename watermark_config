@@ -1,0 +1,42 @@
+{
+    "TEST": {
+        "event_id": "TEST",
+        "enabled": true,
+        "position": "bottom-center",
+        "opacity": 100,
+        "scale": 100,
+        "sizeMode": "prop",
+        "insetX": 0,
+        "insetY": 0,
+        "margin": 5
+    },
+    "TEST-MULTISNAP": {
+        "enabled": true,
+        "position": "bottom-right",
+        "opacity": 100,
+        "scale": 100,
+        "margin": 5
+    },
+    "2026_02_12GrandOpening": {
+        "event_id": "2026_02_12GrandOpening",
+        "enabled": true,
+        "position": "bottom-center",
+        "opacity": 100,
+        "scale": 100,
+        "sizeMode": "prop",
+        "insetX": 0,
+        "insetY": -5,
+        "margin": 5
+    },
+    "2026_03_19\u0e23\u0e39\u0e49\u0e40\u0e23\u0e47\u0e27\u0e15\u0e32\u0e44\u0e21\u0e48\u0e1a\u0e2d\u0e14": {
+        "event_id": "2026_03_19\u0e23\u0e39\u0e49\u0e40\u0e23\u0e47\u0e27\u0e15\u0e32\u0e44\u0e21\u0e48\u0e1a\u0e2d\u0e14",
+        "enabled": true,
+        "position": "bottom-right",
+        "opacity": 100,
+        "scale": 100,
+        "sizeMode": "prop",
+        "insetX": 0,
+        "insetY": 0,
+        "margin": 5
+    }
+}
