@@ -42,7 +42,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 # ================= CONFIGURATION =================
 # ⚠️ โดเมนจริง (HTTPS)
-PUBLIC_BASE_URL = "https://multisnap.site" 
+PUBLIC_BASE_URL = "https://multisnap.site.je" 
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "1234"
